@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tinder_cat_dog_app/core/presentation/bloc/cubit/settings_cubit.dart';
+import 'package:tinder_cat_dog_app/features/animals/presentation/bloc/cubit/animal_cubit.dart';
 
-/// This page shows the different settings for the
-/// user.
-///
-/// Your task is to put the users selection to your BLoC and load the cats or
-/// the dogs from the server based on that.
 class SettingsPage extends StatelessWidget {
   static const routeName = '/settings';
 
@@ -12,29 +10,54 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            icon: const Icon(Icons.save),
+    return BlocConsumer<SettingsCubit, SettingsState>(
+      listener: (context, state) {
+        if (state is SettingsManageFailure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+      builder: (context, state) {
+        if (state is SettingsInitial) {
+          Future.microtask(() => context.read<SettingsCubit>().init());
+        }
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Settings'),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  if (state is SettingsManageSuccess) {
+                    context.read<SettingsCubit>().save(state.value);
+                    BlocProvider.of<AnimalCubit>(context).init();
+                    Navigator.pop(context);
+                  }
+                },
+                icon: const Icon(Icons.save),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          const Text('Cats'),
-          Switch(
-            value: false,
-            onChanged: (value) {},
-          ),
-          const Text('Dogs'),
-        ],
-      ),
+          body: state is SettingsManageSuccess
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    const Text('Cats'),
+                    Switch(
+                      value: state.value,
+                      onChanged: (value) =>
+                          context.read<SettingsCubit>().choose(value),
+                    ),
+                    const Text('Dogs'),
+                  ],
+                )
+              : const Center(child: CircularProgressIndicator()),
+        );
+      },
     );
   }
 }
